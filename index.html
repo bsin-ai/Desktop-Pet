@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      margin: 0; padding: 0; overflow: hidden; background: transparent; height: 100vh;
+      display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+      font-family: "Wawati SC", "Yuanti SC", "STYuanti-SC-Regular", "YouYuan", cursive;
+    }
+
+    #main-wrapper { 
+      margin-top: 50px; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+    }
+
+    #bubble {
+      color: #ffffff; 
+      font-size: 16px; 
+      font-weight: 900; 
+      max-width: 280px; 
+      line-height: 1.3;
+      text-shadow: 1.5px 1.5px 0px rgba(0,0,0,0.8), -1.5px -1.5px 0px rgba(0,0,0,0.8),
+                   1.5px -1.5px 0px rgba(0,0,0,0.8), -1.5px 1.5px 0px rgba(0,0,0,0.8);
+      opacity: 0; 
+      transition: opacity 0.4s; 
+      margin-bottom: -2px; 
+      text-align: center; 
+      z-index: 100;
+    }
+
+    #pet-container { position: relative; width: 110px; height: 110px; }
+    #poke-zone { position: absolute; top: 0; width: 100%; height: 50%; -webkit-app-region: no-drag; cursor: pointer; z-index: 10; }
+    #drag-zone { position: absolute; bottom: 0; width: 100%; height: 50%; -webkit-app-region: drag; cursor: move; z-index: 10; }
+    #pet { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+
+    #chat-container {
+      height: 60px;
+      margin-top: 15px;
+      visibility: hidden; 
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    #chat-container.active { visibility: visible; opacity: 1; }
+
+    #chat-ui {
+      width: 300px; 
+      background: rgba(0,0,0,0.6); 
+      border-radius: 12px; 
+      padding: 10px 12px;
+      box-sizing: border-box; 
+      backdrop-filter: blur(5px); 
+      -webkit-app-region: no-drag;
+      display: flex;
+      align-items: center; 
+    }
+    
+    #chat-input { 
+      flex: 1; background: transparent; border: none; outline: none; 
+      color: white; font-size: 14px; font-family: inherit; line-height: 1.4; 
+    }
+    #settings-btn { cursor: pointer; margin-left: 10px; font-size: 16px; opacity: 0.7; }
+    #settings-btn:hover { opacity: 1; }
+
+    /* ================= 新增：专属设置面板样式 ================= */
+    #key-modal {
+      display: none; /* 默认隐藏 */
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(40, 40, 40, 0.95);
+      border-radius: 12px;
+      padding: 15px;
+      width: 260px;
+      z-index: 999;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      -webkit-app-region: no-drag;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    #key-modal h3 {
+      margin: 0 0 10px 0;
+      color: white;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    #modal-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #666;
+      background: #1e1e1e;
+      color: white;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .modal-btns {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+
+    .modal-btns button {
+      padding: 6px 15px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #btn-cancel { background: #555; color: white; }
+    #btn-save { background: #ff9800; color: white; } /* 橘猫色 */
+  </style>
+</head>
+<body>
+  <div id="main-wrapper">
+    <div id="bubble"></div>
+    <div id="pet-container">
+      <div id="poke-zone"></div>
+      <div id="drag-zone"></div>
+      <video id="pet" muted playsinline>
+          <source src="pet.webm" type="video/webm">
+      </video>
+    </div>
+    
+    <div id="chat-container">
+      <div id="chat-ui">
+        <input type="text" id="chat-input" placeholder="小太阳在听喵..." autocomplete="off">
+        <div id="settings-btn" title="配置 API 密钥">⚙️</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="key-modal">
+    <h3>配置能量源 (API Key)</h3>
+    <input type="text" id="modal-input" placeholder="输入 sk- 开头的密钥...">
+    <div class="modal-btns">
+      <button id="btn-cancel">取消</button>
+      <button id="btn-save">补充能量</button>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    const bubble = document.getElementById('bubble');
+    const video = document.getElementById('pet');
+    const chatContainer = document.getElementById('chat-container');
+    const chatInput = document.getElementById('chat-input');
+    const pokeZone = document.getElementById('poke-zone');
+    
+    // 面板相关的 DOM
+    const settingsBtn = document.getElementById('settings-btn');
+    const keyModal = document.getElementById('key-modal');
+    const modalInput = document.getElementById('modal-input');
+    const btnCancel = document.getElementById('btn-cancel');
+    const btnSave = document.getElementById('btn-save');
+
+    let chatModeActive = false;
+    let idleTimer;
+
+    // --- 新版设置交互逻辑 ---
+    // 1. 点击齿轮，打开面板
+    settingsBtn.onclick = () => {
+        const currentKey = localStorage.getItem('deepseek_api_key') || '';
+        modalInput.value = currentKey;
+        keyModal.style.display = 'block';
+    };
+
+    // 2. 点击取消，关闭面板
+    btnCancel.onclick = () => {
+        keyModal.style.display = 'none';
+    };
+
+    // 3. 点击保存，写入本地并关闭面板
+    btnSave.onclick = () => {
+        const key = modalInput.value.trim();
+        if (key !== '') {
+            localStorage.setItem('deepseek_api_key', key);
+            showBubble("能量补充完毕喵！");
+            keyModal.style.display = 'none';
+            chatInput.focus();
+        } else {
+            showBubble("密钥不能为空喵");
+        }
+    };
+
+    // --- 动画与业务逻辑 ---
+    function performAction(speak = true, text = "") {
+        video.currentTime = 0; video.play();
+        if (speak) {
+            if (text) showBubble(text);
+            else localPoke();
+        }
+        resetIdleTimer();
+    }
+
+    video.onended = () => { video.pause(); video.currentTime = 0; };
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimer);
+        if (!chatModeActive) {
+            idleTimer = setTimeout(() => {
+                const idleWords = ["呼噜...呼噜...", "太阳暖洋洋的", "想吃小鱼干了喵", "主人还在忙吗喵"];
+                performAction(true, idleWords[Math.floor(Math.random()*idleWords.length)]);
+            }, 30000);
+        }
+    }
+
+    function showBubble(text) {
+        bubble.innerText = text.replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s\?\!]/g, '');
+        bubble.style.opacity = 1;
+        if(!chatModeActive) setTimeout(() => bubble.style.opacity = 0, 4500);
+    }
+
+    function localPoke() {
+        const words = ["最喜欢主人了喵", "小太阳一直在哦", "摸摸头就不累啦"];
+        showBubble(words[Math.floor(Math.random()*words.length)]);
+    }
+
+    let pressTimer;
+    pokeZone.onmousedown = () => {
+        pressTimer = setTimeout(() => { 
+            chatModeActive = true; 
+            chatContainer.classList.add('active'); 
+            chatInput.focus(); 
+            showBubble("想聊什么喵？"); 
+        }, 600);
+    };
+    pokeZone.onmouseup = () => {
+        clearTimeout(pressTimer);
+        if(!chatModeActive) performAction(true);
+    };
+
+    async function askBrain(text) {
+        const apiKey = localStorage.getItem('deepseek_api_key');
+        if (!apiKey) {
+            showBubble("请先点击下方的 ⚙️ 设置密钥喵");
+            return;
+        }
+        showBubble("思考中喵...");
+        const response = await ipcRenderer.invoke('ask-brain', { type: 'chat', text: text, apiKey: apiKey });
+        performAction(true, response);
+    }
+
+    chatInput.onkeydown = (e) => {
+        if(e.key === 'Enter' && chatInput.value.trim()) { askBrain(chatInput.value); chatInput.value=''; }
+        if(e.key === 'Escape') { 
+            chatModeActive=false; 
+            chatContainer.classList.remove('active'); 
+            bubble.style.opacity=0; 
+            resetIdleTimer(); 
+        }
+    };
+
+    ipcRenderer.on('app-changed', async (e, name) => { 
+        if(!chatModeActive) {
+            const apiKey = localStorage.getItem('deepseek_api_key');
+            if (!apiKey) return; 
+            const response = await ipcRenderer.invoke('ask-brain', { type: 'app-switch', text: name, apiKey: apiKey });
+            showBubble(response);
+        }
+    });
+
+    resetIdleTimer();
+  </script>
+</body>
+</html>

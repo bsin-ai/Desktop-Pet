@@ -1,0 +1,14 @@
+# 核心：忽略依赖包（必须）
+node_modules/
+
+# 忽略 macOS 自动生成的系统文件
+.DS_Store
+
+# 忽略运行或安装时产生的日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 忽略可能包含 API Key 的本地环境变量文件
+.env
+.env.local

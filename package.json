@@ -1,0 +1,15 @@
+{
+  "name": "desktop-pet",
+  "version": "1.0.0",
+  "description": "A simple desktop pet application using Electron.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^30.5.1"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}
