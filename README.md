@@ -1,5 +1,10 @@
 # 赛博猫咪：小太阳桌面宠物 
 
+> **项目地址：** https://github.com/bsin-ai/Desktop-Pet
+> **下载源码：** [Desktop-Pet-main.zip](https://github.com/bsin-ai/Desktop-Pet/archive/refs/heads/main.zip)
+>
+> 本项目是 macOS 桌面应用，不是网页应用。请下载或克隆后在本地运行；直接打开 `index.html` 或部署到 GitHub Pages 无法使用 Electron 和系统感知功能。
+
 基于 Electron 和 大语言模型 (LLM) 开发的 macOS 桌面级虚拟宠物 AI Agent。该应用通过透明的置顶窗口在桌面上运行，并结合本地系统脚本实时感知用户当前活跃的应用程序，调用 DeepSeek API 提供具有上下文感知能力的暖心互动。
 
 ## 🌟 核心功能 (Features)
@@ -23,17 +28,35 @@
 ## 🚀 环境依赖与运行说明
 
 ### 1. 前置准备
-* 确保已安装 **Node.js** 和 **npm**。
+* 确保已安装 **Node.js**（建议使用受支持的 LTS 版本）和 **npm**。
 * 本项目依赖系统底层 API 抓取应用状态，目前**仅支持 macOS 系统**。运行前需在 macOS 的“系统设置 -> 隐私与安全性 -> 辅助功能”中授予终端或相关应用权限。
-* 准备一个具有透明通道的宠物动画视频，命名为 `pet.webm`，并放置在项目根目录。
+* 仓库已包含 `pet.webm` 宠物素材。如需更换，请使用同名透明通道 WebM 视频放置在项目根目录。
 
 ### 2. 安装与启动
-克隆本项目到本地后，在项目根目录执行以下命令：
+在终端执行以下命令：
 
 ```bash
-# 初始化并安装 Electron (如果尚未安装)
-npm init -y
-npm install electron --save-dev
+# 从新账号地址克隆项目
+git clone https://github.com/bsin-ai/Desktop-Pet.git
+cd Desktop-Pet
 
-# 启动项目
-npx electron .
+# 按锁定版本安装依赖，无需重新初始化 package.json
+npm ci
+
+# 启动桌面宠物
+npm start
+```
+
+如果下载的是 ZIP，请先解压，在解压后的目录打开终端，再执行 `npm ci` 和 `npm start`。
+
+### 3. 配置 AI 互动
+
+启动后点击 ⚙️，输入自己的 DeepSeek API Key 并保存。密钥存储在本机应用的本地存储中，请勿提交到 GitHub 或分享给他人。AI 对话需要网络连接及可用的 API 额度；未配置密钥时仍可体验本地点击互动。
+
+### 4. 分享与旧地址迁移
+
+请使用上方 `bsin-ai/Desktop-Pet` 项目地址分享。已有本地副本的用户可在项目目录中更新远程地址：
+
+```bash
+git remote set-url origin https://github.com/bsin-ai/Desktop-Pet.git
+```
